@@ -1,4 +1,4 @@
-package com.companyx.equity;
+package com.companyx.equity.model;
 
 import javax.persistence.*;
 
