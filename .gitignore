@@ -1,4 +1,37 @@
+.DS_Store
+**/.DS_Store
+
+###
+# Intellij
+###
+.idea/
+*.iml
+*.iws
+*.ipr
+*.ids
+*.orig
+classes/
+out/
+
+###
+# Maven
+###
+/log/
+/target/
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionBackup
+pom.xml.next
+release.properties
+dependency-redueced-pom.xml
+buildNumber.properties
+.mvn
+mvnvm.properties
+
+
 # Compiled class file
+target/
 *.class
 
 # Log file

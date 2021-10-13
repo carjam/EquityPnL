@@ -1,0 +1,48 @@
+version: '3'
+networks:
+    spring-boot-network: null
+services: 
+    equity-db:
+        image: mysql:8.0
+        restart: always
+        env_file:
+          - .env
+        ports: #local machine: container
+            - "60333:3306"
+        expose:
+            - "3306"
+            - "60333"
+        volumes:
+            #Mapping mysql folder to a volume
+            - equity-db:/var/lib/mysql:delegated
+            - ./src/main/resources/db/initialize_db.sql:/docker-entrypoint-initdb.d/0_init.sql
+        networks: 
+            spring-boot-network:
+                aliases: 
+                - equity-db.dev
+    app:
+        restart: on-failure:3 
+        build:
+            context: .
+            dockerfile: Dockerfile
+        ports: 
+            - '8084:8084'
+        expose:
+          - "8084"
+        volumes:
+          - .:/app:delegated
+          - mavencache:/root/.m2
+        networks:
+            spring-boot-network:
+                aliases: 
+                    - app.dev
+        depends_on: 
+            - equity-db
+        env_file:
+          - .env
+        working_dir: /app
+        command: 'mvn spring-boot:run'
+    
+volumes:
+    equity-db: null
+    mavencache: null
