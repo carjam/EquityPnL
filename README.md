@@ -1,4 +1,4 @@
-# widget
+# equity
 
 Template project for quick-start of a POC java REST API w/ mysql flyway integration.
 
@@ -8,10 +8,10 @@ mysql -u root
  > CREATE USER 'carjam'@'localhost' IDENTIFIED BY 'password'
  > GRANT ALL PRIVILEGES ON *.* TO 'carjam'@'localhost';
  > FLUSH PRIVILEGES;
- > CREATE DATABASE widget;
- > USE widget;
- > GRANT ALL ON widget TO carjam@localhost ;
- > GRANT ALL PRIVILEGES ON `widget`.* TO 'carjam'@'localhost';
+ > CREATE DATABASE equity;
+ > USE equity;
+ > GRANT ALL ON equity TO carjam@localhost ;
+ > GRANT ALL PRIVILEGES ON `equity`.* TO 'carjam'@'localhost';
  > ALTER USER 'carjam'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';
 ```
 
@@ -26,11 +26,11 @@ Build:
  ```
  > mvn spring-boot:run
  ```
- verify running at http://localhost:8080/Widget/1
+ verify running at http://localhost:8080/Equity/1
  (or whatever port you've specified in the application.properties file)
 
  to manually run flyway:
-   from /widget directory > mvn compile flyway:migrate
+   from /equity directory > mvn compile flyway:migrate
 
 Create .env and add your environment values like:
 ```
@@ -38,13 +38,13 @@ MYSQL_ROOT_PASSWORD=root1234
 MYSQL_USER=carjam
 MYSQL_PASSWORD=password
 MYSQL_ALLOW_EMPTY_PASSWORD=1
-MYSQL_DATABASE=widget
+MYSQL_DATABASE=equity
 
 MAVEN_OPTS=-Xmx1024m
-DATABASE_HOST=widget-db
+DATABASE_HOST=equity-db
 DATABASE_USER=carjam
 DATABASE_PASSWORD=password
-DATABASE_NAME=widget
+DATABASE_NAME=equity
 DATABASE_PORT=3306
 SPRING_PROFILES_ACTIVE=dev
 LOG_LEVEL=INFO
@@ -54,7 +54,7 @@ LOG_LEVEL=INFO
 To setup docker, first follow instructions here:
   https://spring.io/guides/gs/spring-boot-docker/
 ```
-From widget directory:
+From equity directory:
 > mkdir -p target/dependency
 > cd target/dependency
 > jar -xf ../*.jar
@@ -66,4 +66,4 @@ To run with docker-compose:
 > docker-compose build
 > docker-compose up
 ```
-verify running at http://localhost:8080/Widget/1
+verify running at http://localhost:8080/Equity/1

@@ -26,9 +26,9 @@ services:
             context: .
             dockerfile: Dockerfile
         ports: 
-            - '8084:8084'
+            - '8080:8080'
         expose:
-          - "8084"
+          - "8080"
         volumes:
           - .:/app:delegated
           - mavencache:/root/.m2
