@@ -1,8 +1,11 @@
 # equity
 
-Template project for quick-start of a POC java REST API w/ mysql flyway integration.
+Demo project for prototype of java REST API w/ mysql flyway integration.
+Snapshot PnL calculation for Equity positions based on free-tier Finhub integration:
+- https://finnhub.io/docs/api/quote
 
-steps to get here:
+
+Setup Steps:
 ```
 mysql -u root
  > CREATE USER 'carjam'@'localhost' IDENTIFIED BY 'password'
@@ -55,6 +58,8 @@ To setup docker, first follow instructions here:
   https://spring.io/guides/gs/spring-boot-docker/
 ```
 From equity directory:
+> . build.sh
+OR
 > mkdir -p target/dependency
 > cd target/dependency
 > jar -xf ../*.jar
