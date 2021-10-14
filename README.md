@@ -3,6 +3,7 @@
 Demo project for prototype of java REST API w/ mysql flyway integration.
 Snapshot PnL calculation for Equity positions based on free-tier Finhub integration:
 - https://finnhub.io/docs/api/quote
+- https://finnhub.io/docs/api/stock-candles
 
 
 Setup Steps:
@@ -71,4 +72,4 @@ To run with docker-compose:
 > docker-compose build
 > docker-compose up
 ```
-verify running at http://localhost:8080/Equity/1
+verify running at http://localhost:8080/Transaction/1

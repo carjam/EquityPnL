@@ -1,12 +1,18 @@
 package com.companyx.equity.model;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import javax.persistence.*;
+
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 
+
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
 @Entity
 public class Transaction {
     @Id
@@ -16,9 +22,11 @@ public class Transaction {
     //User
     //TransactionType
     private String symbol;
-    private float quantity;
+    private Float quantity;
     private BigDecimal value;
     private Timestamp timestamp;
+
+    //TODO: translate Finhub integer seconds from epoc to Timestamp
 
     @Override
     public String toString() {

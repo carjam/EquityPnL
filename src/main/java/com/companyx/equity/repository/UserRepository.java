@@ -1,10 +1,10 @@
 package com.companyx.equity.repository;
 
 
-import com.companyx.equity.model.Equity;
+import com.companyx.equity.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface UserRepository extends JpaRepository<Equity, Integer> {
+public interface UserRepository extends JpaRepository<User, Integer> {
 }
