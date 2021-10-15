@@ -1,47 +1,42 @@
 package com.companyx.equity.controller;
 
 import com.companyx.equity.model.Transaction;
-import com.companyx.equity.repository.TransactionRepository;
+import com.companyx.equity.service.PnLService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
 @RestController
 public class TransactionController {
-
     @Autowired
-    TransactionRepository transactionRepository;
+    PnLService pnLService;
+
+    @GetMapping("/pnl")
+    public EntityModel<Map<String, Pair<BigDecimal, BigInteger>>> pnlBetween(@RequestParam String from, @RequestParam String to) throws ParseException {
+        Date fromDate = new SimpleDateFormat("yyyy-MM-dd").parse(from);
+        Date toDate = new SimpleDateFormat("yyyy-MM-dd").parse(to);
+        return EntityModel.of(pnLService.getPosition(fromDate, toDate));
+    }
 
     @GetMapping("/Transaction/{id}")
-    public Transaction show(@PathVariable String id){
-        Integer transactionId = Integer.parseInt(id);
-        return transactionRepository.findById(transactionId).get();
+    public EntityModel<Transaction> show(@PathVariable String id){
+        return EntityModel.of(pnLService.getTransactionById(id));
     }
 
     @GetMapping("/Transaction")
-    public List<Transaction> findBetween(@RequestParam Optional<String> from, @RequestParam Optional<String> to) throws ParseException {
-        Date fromDate = null;
-        Date toDate = null;
-        if (from.isPresent()) {
-            fromDate = new SimpleDateFormat("yyyy-MM-dd").parse(from.get());
-        }
-        if (to.isPresent()) {
-            toDate = new SimpleDateFormat("yyyy-MM-dd").parse(to.get());
-        }
-
-        if (Objects.isNull(fromDate) && Objects.isNull(toDate))
-            return transactionRepository.findAll();
-        else if (Objects.isNull(fromDate))
-            return transactionRepository.findAllBefore(toDate);
-        else
-            return transactionRepository.findAllBetween(fromDate, toDate);
+    public EntityModel<List<Transaction>> findBetween(@RequestParam Optional<String> from, @RequestParam Optional<String> to) throws ParseException {
+        return EntityModel.of(pnLService.getTransactionByDates(from, to));
     }
 }
