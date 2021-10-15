@@ -38,7 +38,7 @@ public class PnLService {
         log.info(new Timestamp(System.currentTimeMillis()) + " "
                 + this.getClass() + ":"
                 + new Throwable().getStackTrace()[0].getMethodName()
-                + "\n" + priorTrans.size() + " transactions: " + priorTrans
+                + "\n" + priorTrans.size() + " transactions"
                 + "\n" + " from " + start + " to " + end
         );
         for(Transaction transaction : priorTrans) {
@@ -63,9 +63,25 @@ public class PnLService {
                     positions.put(CASH, Pair.of(positions.get(CASH).getLeft().subtract(transaction.getValue()), BigInteger.ZERO));
                     break;
                 case TransactionType.SALE:
+                    //calc new position
+                    BigDecimal transPrice = transaction.getValue().abs().divide(new BigDecimal(transaction.getQuantity()));
+                    BigInteger newQuant = startPos.getRight().subtract(transaction.getQuantity());
+                    BigDecimal newVal = transPrice.multiply(new BigDecimal(newQuant));
+                    positions.put(sym, Pair.of(newVal, newQuant));
 
-                    positions.put(sym, Pair.of(startPos.getLeft().add(transaction.getValue()), startPos.getRight().subtract(transaction.getQuantity())));
-                    positions.put(CASH, Pair.of(positions.get(CASH).getLeft().add(transaction.getValue()), BigInteger.ZERO));
+                    //calc realized
+                    BigDecimal startPrice = startPos.getLeft().abs().divide(new BigDecimal(startPos.getRight()));
+                    BigDecimal realized = (transPrice.subtract(startPrice)).multiply(new BigDecimal(transaction.getQuantity()));
+                    positions.put(CASH, Pair.of(positions.get(CASH).getLeft().add(realized), BigInteger.ZERO));
+                    log.info(new Timestamp(System.currentTimeMillis()) + " "
+                            + this.getClass() + ":"
+                            + new Throwable().getStackTrace()[0].getMethodName()
+                            + "\nstartPrice: " + startPrice
+                            + "\ntransPrice: " + transPrice
+                            + "\nrealized: " + realized
+                            + "\nnewQuant: " + newQuant
+                            + "\nnewVal: " + newVal
+                    );
                     break;
                 default:
                     throw new UnsupportedOperationException("Unknown transaction type " + transaction.getTransactionType().getDescription());
@@ -128,23 +144,4 @@ public class PnLService {
         else
             return transactionRepository.findAllBetween(fromDate, toDate);
     }
-
-    /*
-    for trans, if BUY price *= -1
-
-     */
-
-    /*private void getRealized(DateTime start, DateTime end) {
-        //start basis - end basis = loss
-        //loss * shares sold/shares held(start) = realized
-        //loss * shares held(end)/shares held(start) = unrealized
-    }
-
-    private void getUnRealized(DateTime start, DateTime end) {
-        //Position endPos = getPosition(start, end);
-        //iterate over endPos, calling out for price @end (candles if < today, else mark)
-        // unrealized = (endPrice * endPos) - (historical net value(price * amt))
-        //return endPos
-    }
-     */
 }
