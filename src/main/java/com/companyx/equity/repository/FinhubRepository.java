@@ -3,6 +3,7 @@ package com.companyx.equity.repository;
 import com.companyx.equity.dto.CandleDto;
 import com.companyx.equity.dto.MarkDto;
 import com.companyx.equity.error.ResponseVerificationException;
+import com.companyx.equity.utility.DateUtils;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -84,7 +85,7 @@ public class FinhubRepository {
 
     @Retryable(maxAttempts = 3, backoff = @Backoff(delay = BACKOFF_DELAY))
     public CandleDto getCandle(String symbol, Date from, Date to) throws JsonProcessingException {
-        final String CANDLE = "/candle";
+        final String CANDLE = "/stock/candle";
 
         Mono<String> result = WebClient.create(FINHUB_URL)
                 .get()
@@ -93,9 +94,8 @@ public class FinhubRepository {
                                 .path(CANDLE)
                                 .queryParam(SYMBOL_KEY, symbol)
                                 .queryParam(RESOLUTION_KEY, DAILY)
-                                //TODO: method to translate FH timestamp int from epoc to Date
-                                .queryParam(FROM_KEY, from)
-                                .queryParam(TO_KEY, to)
+                                .queryParam(FROM_KEY, DateUtils.epochFromDate(from))
+                                .queryParam(TO_KEY, DateUtils.epochFromDate(to))
                                 .build()
                 )
                 .headers(httpHeaders -> createHeaders(httpHeaders))

@@ -30,7 +30,7 @@ public class CandleDto {
     @JsonProperty("s")
     private String status;
     @JsonProperty("t")
-    private BigInteger timestamp;
+    private List<BigInteger> timestamp;
     @JsonProperty("v")
     private List<BigInteger> volume;
 }
