@@ -41,14 +41,19 @@ public class FinhubRepository {
 
     @Autowired
     FinhubRepository(
-            @Value("{finhub.url}")String FINHUB_URL
-            , @Value("{finhub.key}")String FINHUB_KEY
+            @Value("${finhub.url}")String FINHUB_URL
+            , @Value("${finhub.key}")String FINHUB_KEY
     ) {
         this.FINHUB_URL = FINHUB_URL;
         this.FINHUB_KEY = FINHUB_KEY;
-    }
 
-    //TODO: method to translate FH timestamp int from epoc to Date
+        log.info(new Timestamp(System.currentTimeMillis()) + " "
+                + this.getClass() + ":"
+                + new Throwable().getStackTrace()[0].getMethodName()
+                + "\nFinhubRepository Constructed with  "
+                + this.FINHUB_URL
+        );
+    }
 
     @Retryable(maxAttempts = 3, backoff = @Backoff(delay = BACKOFF_DELAY))
     public MarkDto getMark(String symbol) throws JsonProcessingException {
@@ -88,6 +93,7 @@ public class FinhubRepository {
                                 .path(CANDLE)
                                 .queryParam(SYMBOL_KEY, symbol)
                                 .queryParam(RESOLUTION_KEY, DAILY)
+                                //TODO: method to translate FH timestamp int from epoc to Date
                                 .queryParam(FROM_KEY, from)
                                 .queryParam(TO_KEY, to)
                                 .build()
