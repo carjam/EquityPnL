@@ -49,7 +49,7 @@ CREATE TABLE transaction (
     , user_id BIGINT UNSIGNED NOT NULL
     , transaction_type_id BIGINT UNSIGNED NOT NULL
     , symbol CHAR(12) NULL
-    , quantity DECIMAL(15,2) NULL -- let's plan for fractional shares
+    , quantity BIGINT NULL -- let's plan for fractional shares
     , value DECIMAL(15,2) NULL
     , timestamp TIMESTAMP NOT NULL
     , CONSTRAINT fk_transaction_user FOREIGN KEY (user_id) REFERENCES user(id)

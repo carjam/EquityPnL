@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import javax.persistence.*;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Timestamp;
 
 
@@ -15,21 +16,23 @@ import java.sql.Timestamp;
 @Getter
 @Entity
 public class Transaction {
+    public static final String DEPOSIT = "deposit";
+    public static final String WITHDRAWAL = "withdraw";
+    public static final String BUY = "buy";
+    public static final String SALE = "sell";
+
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
 
-    //User
-    //TransactionType
     private String symbol;
-    private Float quantity;
+    private BigInteger quantity;
     private BigDecimal value;
     private Timestamp timestamp;
 
-    //TODO: translate Finhub integer seconds from epoc to Timestamp
+    @ManyToOne(fetch = FetchType.EAGER)
+    private User user;
 
-    @Override
-    public String toString() {
-        return "";
-    }
+    @ManyToOne(fetch = FetchType.EAGER)
+    private TransactionType transactionType;
 }
