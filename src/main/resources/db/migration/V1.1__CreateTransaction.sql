@@ -58,6 +58,12 @@ CREATE TABLE transaction (
 
 
 INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
+VALUES(@USER, @SELL, 'GME', 5, 200.0, '2020-01-01 10:00:00');
+
+INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
+VALUES(@USER, @BUY, 'GME', 6, 100.0, '2020-01-01 10:01:00');
+
+INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
 VALUES(@USER, @DEPOSIT, NULL, NULL, 1000.0, '2020-01-01 12:05:22');
 
 INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
@@ -81,6 +87,9 @@ VALUES(@USER, @SELL, 'IBM', 4, 1000.0, '2021-03-01 18:34:12');
 INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
 VALUES(@USER, @SELL, 'IBM', 2, 200.0, '2021-03-02 18:34:12');
 
---test all:
--- BUY: long to long, short to short, long to short, short to long
--- SELL: long to long, short to short, long to short, short to long
+INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
+VALUES(@USER, @BUY, 'IBM', 1, 100.0, '2021-03-02 19:00:00');
+
+INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
+VALUES(@USER, @SELL, 'AAPL', 16, 150.00, '2021-03-02 19:15:00');
+

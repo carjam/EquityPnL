@@ -122,30 +122,37 @@ public class PnLService {
             if(TransactionType.CASH_TRANS.contains(transaction.getTransactionType().getDescription()))
                 sym = CASH;
 
-            BigDecimal transPrice, transVal, startPrice, startVal, endVal, cash, realized;//, unrealized;
-            BigInteger startQuant, transQuant, endQuant;
-
-            Position cashPos = positions.containsKey(CASH) ? positions.get(sym) : new Position(user, transaction.getTimestamp(), sym);
+            Position cashPos = positions.containsKey(CASH) ? positions.get(CASH) : new Position(user, transaction.getTimestamp(), CASH);
             Position startPos = positions.containsKey(sym) ? positions.get(sym) : new Position(user, transaction.getTimestamp(), sym);
 
+            BigDecimal transPrice, transVal, startPrice, startVal, endVal, cash, realized;
+            BigInteger startQuant, transQuant, endQuant;
             startVal = startPos.getValue();
             startQuant = startPos.getQuantity();
             startPrice = startQuant.equals(BigInteger.ZERO) ? BigDecimal.ZERO
                     : startVal.divide(new BigDecimal(startQuant), ROUNDING_SCALE, RoundingMode.HALF_UP).abs();
             cash = transaction.getValue();
+            log.info(new Timestamp(System.currentTimeMillis()) + " "
+                    + this.getClass() + ":"
+                    + new Throwable().getStackTrace()[0].getMethodName()
+                    + "\n### startVal: " + startVal
+                    + "\n### startQuant: " + startQuant
+                    + "\n### startPrice: " + startPrice
+                    + "\n### cash: " + cash
+            );
 
             switch(transaction.getTransactionType().getDescription()) {
                 case TransactionType.DEPOSIT:
                     if(!sym.equals(CASH))
                         throw new UnexpectedValueException(sym + " encountered when " + CASH + " expected.");
                     cashPos.setValue(cashPos.getValue().add(cash));
-                    positions.put(sym, cashPos);
+                    positions.put(CASH, cashPos);
                     break;
                 case TransactionType.WITHDRAWAL:
                     if(!sym.equals(CASH))
                         throw new UnexpectedValueException(sym + " encountered when " + CASH + " expected.");
                     cashPos.setValue(cashPos.getValue().subtract(cash));
-                    positions.put(sym, cashPos);
+                    positions.put(CASH, cashPos);
                     break;
                 case TransactionType.BUY:
                     //trans inputs always >= 0
@@ -160,17 +167,14 @@ public class PnLService {
                     if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0)) {
                         endVal = startVal.subtract(transVal);
                         realized = BigDecimal.ZERO;
-                        // unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
-                        // short -> short
+                    // short -> short
                     } else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0)) {
                         endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
-                        realized = new BigDecimal(transQuant).multiply(transPrice.subtract(startPrice));
-                        // unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
-                        //short -> long
+                        realized = new BigDecimal(transQuant).multiply(startPrice.subtract(transPrice));
+                    //short -> long
                     } else {
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
-                        realized = startVal.subtract(new BigDecimal(startQuant).multiply(transPrice)); // basis - (startQ * transP)
-                        // unrealized = BigDecimal.ZERO;
+                        realized = startVal.add(new BigDecimal(startQuant).multiply(transPrice)); // basis - (startQ * transP)
                     }
 
                     startPos.setValue(endVal);
@@ -178,7 +182,6 @@ public class PnLService {
                     startPos.setRealized(startPos.getRealized().add(realized)); //ITD cumulative
                     positions.put(sym, startPos);
 
-                    cashPos = positions.get(CASH);
                     cashPos.setValue(cashPos.getValue().subtract(cash));
                     positions.put(CASH, cashPos);
                     break;
@@ -195,17 +198,14 @@ public class PnLService {
                     if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0)) {
                         endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                         realized = new BigDecimal(transQuant).multiply(transPrice.subtract(startPrice));
-                        // unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
-                        //short -> short
+                    //short -> short
                     } else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0)) {
                         endVal = startVal.add(transVal);
                         realized = BigDecimal.ZERO;
-                        // unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
-                        //long -> short
+                    //long -> short
                     } else {
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
-                        realized = new BigDecimal(startQuant).multiply(transPrice).add(startVal); // (startQ * transP) - basis
-                        // unrealized = BigDecimal.ZERO;
+                        realized = startVal.add(new BigDecimal(startQuant).multiply(transPrice)); // (startQ * transP) - basis
                     }
 
                     startPos.setValue(endVal);
@@ -213,7 +213,6 @@ public class PnLService {
                     startPos.setRealized(startPos.getRealized().add(realized)); //ITD cumulative
                     positions.put(sym, startPos);
 
-                    cashPos = positions.get(CASH);
                     cashPos.setValue(cashPos.getValue().add(cash));
                     positions.put(CASH, cashPos);
                     break;
