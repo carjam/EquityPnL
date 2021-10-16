@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.security.auth.login.LoginException;
 import java.text.ParseException;
 
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -50,5 +51,10 @@ public class RestExceptionHandler {
         return new ResponseEntity<>(msg, HttpStatus.EXPECTATION_FAILED);
     }
 
-
+    @ExceptionHandler(value = LoginException.class)
+    protected ResponseEntity<Object> exception(LoginException e) {
+        String msg = e.getMessage();
+        log.error(msg);
+        return new ResponseEntity<>(msg, HttpStatus.UNAUTHORIZED);
+    }
 }

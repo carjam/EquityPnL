@@ -1,5 +1,6 @@
 package com.companyx.equity.model;
 
+import com.sun.istack.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,4 +19,6 @@ public class User {
     private int id;
     private String firstName;
     private String lastName;
+    @NotNull
+    private String uid;
 }

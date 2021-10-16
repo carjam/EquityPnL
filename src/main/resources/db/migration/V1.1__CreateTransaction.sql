@@ -4,14 +4,14 @@ CREATE TABLE user (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY
     , first_name VARCHAR(50) NULL
     , last_name VARCHAR(50) NULL
+    , uid CHAR(12) NOT NULL
 );
 
-INSERT INTO user(first_name, last_name)
-VALUES('James', 'Carson');
+INSERT INTO user(first_name, last_name, uid)
+VALUES('James', 'Carson', 'carjam');
 
 SELECT @USER := id from user
-WHERE first_name = 'James'
-AND last_name = 'Carson';
+WHERE uid = 'carjam';
 
 --
 CREATE TABLE transaction_type (

@@ -1,5 +1,6 @@
 package com.companyx.equity.model;
 
+import com.sun.istack.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,14 +20,17 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
 
+    @NotNull
     private Timestamp timestamp;
     private String symbol;
     private BigInteger quantity;
     private BigDecimal value;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.EAGER)
     private User user;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.EAGER)
     private TransactionType transactionType;
 

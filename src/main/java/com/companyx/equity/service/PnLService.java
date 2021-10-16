@@ -4,14 +4,17 @@ import com.companyx.equity.error.UnexpectedValueException;
 import com.companyx.equity.model.Position;
 import com.companyx.equity.model.Transaction;
 import com.companyx.equity.model.TransactionType;
+import com.companyx.equity.model.User;
 import com.companyx.equity.repository.FinhubRepository;
 import com.companyx.equity.repository.TransactionRepository;
+import com.companyx.equity.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.security.auth.login.LoginException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -28,6 +31,9 @@ public class PnLService {
     private final int ROUNDING_SCALE = 6;
 
     @Autowired
+    UserRepository userRepository;
+
+    @Autowired
     TransactionRepository transactionRepository;
 
     @Autowired
@@ -38,11 +44,15 @@ public class PnLService {
      *  long = negative value, positive quantity
      *  short = positive value, negative quantity
      */
-    public Map<String, Position> getPositions(Date start, Date end) throws JsonProcessingException {
-        Map<String, Position> positions = getStartPositions(start);
+    public Map<String, Position> getPositions(String uid, Date start, Date end) throws JsonProcessingException, LoginException {
+        Optional<User> user = userRepository.findByUid(uid);
+        if(!user.isPresent())
+            throw new LoginException();
+
+        Map<String, Position> positions = getStartPositions(user.get(), start);
 
         //get transactions in scope & calculate new basis, quantity, and cumulative realized
-        List<Transaction> transactions = transactionRepository.findAllBetween(start, end);
+        List<Transaction> transactions = transactionRepository.findAllBetween(user.get().getId(), start, end);
         log.info(new Timestamp(System.currentTimeMillis()) + " "
                 + this.getClass() + ":"
                 + new Throwable().getStackTrace()[0].getMethodName()
@@ -61,8 +71,8 @@ public class PnLService {
         return positions;
     }
 
-    private Map<String, Position> getStartPositions(Date start) throws JsonProcessingException {
-        List<Transaction> priorTrans = transactionRepository.findAllBefore(start);
+    private Map<String, Position> getStartPositions(User user, Date start) throws JsonProcessingException {
+        List<Transaction> priorTrans = transactionRepository.findAllBefore(user.getId(), start);
         log.info(new Timestamp(System.currentTimeMillis()) + " "
                 + this.getClass() + ":"
                 + new Throwable().getStackTrace()[0].getMethodName()
@@ -141,7 +151,7 @@ public class PnLService {
 
                     startPos.setValue(endVal);
                     startPos.setQuantity(endQuant);
-                    startPos.setRealizedITD(realized);
+                    startPos.setRealized(realized);
                     positions.put(sym, startPos);
 
                     cashPos = positions.get(CASH);
@@ -176,7 +186,7 @@ public class PnLService {
 
                     startPos.setValue(endVal);
                     startPos.setQuantity(endQuant);
-                    startPos.setRealizedITD(realized);
+                    startPos.setRealized(realized);
                     positions.put(sym, startPos);
 
                     cashPos = positions.get(CASH);
@@ -226,12 +236,21 @@ public class PnLService {
         return positions;
     }
 
-    public Transaction getTransactionById(String id){
+    public Transaction getTransactionById(String uid, String id) throws LoginException {
+        Optional<User> user = userRepository.findByUid(uid);
+        if(!user.isPresent())
+            throw new LoginException();
+
         Integer transactionId = Integer.parseInt(id);
-        return transactionRepository.findById(transactionId).get();
+        return transactionRepository.findByUidAndId(user.get().getId(), transactionId).get();
     }
 
-    public List<Transaction> getTransactionByDates(Optional<String> from, Optional<String> to) throws ParseException {
+    public List<Transaction> getTransactionsByDates(String uid, Optional<String> from, Optional<String> to)
+            throws ParseException, LoginException {
+        Optional<User> user = userRepository.findByUid(uid);
+        if(!user.isPresent())
+            throw new LoginException();
+
         Date fromDate = null;
         Date toDate = null;
         if (from.isPresent()) {
@@ -244,8 +263,8 @@ public class PnLService {
         if (Objects.isNull(fromDate) && Objects.isNull(toDate))
             return transactionRepository.findAll();
         else if (Objects.isNull(fromDate))
-            return transactionRepository.findAllBefore(toDate);
+            return transactionRepository.findAllBefore(user.get().getId(), toDate);
         else
-            return transactionRepository.findAllBetween(fromDate, toDate);
+            return transactionRepository.findAllBetween(user.get().getId(), fromDate, toDate);
     }
 }

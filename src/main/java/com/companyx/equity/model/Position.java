@@ -21,7 +21,7 @@ public class Position {
         this.symbol = symbol;
         this.quantity = BigInteger.ZERO;
         this.value = BigDecimal.ZERO;
-        this.realizedITD = BigDecimal.ZERO;
+        this.realized = BigDecimal.ZERO;
         this.unrealized = BigDecimal.ZERO;
     }
 
@@ -33,7 +33,7 @@ public class Position {
     private String symbol;
     private BigInteger quantity;
     private BigDecimal value;
-    private BigDecimal realizedITD;
+    private BigDecimal realized;
     private BigDecimal unrealized;
 
     @ManyToOne(fetch = FetchType.EAGER)
