@@ -61,16 +61,26 @@ INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, t
 VALUES(@USER, @DEPOSIT, NULL, NULL, 1000.0, '2020-01-01 12:05:22');
 
 INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
-VALUES(@USER, @BUY, 'AAPL', 10, 760.60, '2020-01-02 16:01:23');
+VALUES(@USER, @BUY, 'AAPL', 10, 750.50, '2020-01-02 16:01:23');
 
 INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
-VALUES(@USER, @BUY, 'AAPL', 5, 435.11, '2020-06-05 15:21:55');
+VALUES(@USER, @BUY, 'AAPL', 5, 250.25, '2020-06-05 15:21:55');
 
 INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
-VALUES(@USER, @BUY, 'GME', 5, 200.99, '2020-12-21 15:45:24');
+VALUES(@USER, @BUY, 'GME', 5, 200.25, '2020-12-21 15:45:24');
 
 INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
-VALUES(@USER, @SELL, 'GME', 5, 905.04, '2021-01-26 18:34:12');
+VALUES(@USER, @SELL, 'GME', 4, 900.05, '2021-01-26 18:34:12');
 
 INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
 VALUES(@USER, @WITHDRAW, NULL, NULL, 500.0, '2021-02-04 11:01:56');
+
+INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
+VALUES(@USER, @SELL, 'IBM', 4, 1000.0, '2021-03-01 18:34:12');
+
+INSERT INTO transaction(user_id, transaction_type_id, symbol, quantity, value, timestamp)
+VALUES(@USER, @SELL, 'IBM', 2, 200.0, '2021-03-02 18:34:12');
+
+--test all:
+-- BUY: long to long, short to short, long to short, short to long
+-- SELL: long to long, short to short, long to short, short to long

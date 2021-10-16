@@ -13,6 +13,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -23,6 +24,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class PnLService {
     private final String CASH = "cash";
+    private final int ROUNDING_SCALE = 6;
 
     @Autowired
     TransactionRepository transactionRepository;
@@ -32,7 +34,7 @@ public class PnLService {
 
     //Position endPos = start positions + buys - sales;
     public Map<String, Pair<BigDecimal, BigInteger>> getPosition(Date start, Date end) {
-        Map<String, Pair<BigDecimal, BigInteger>> positions = new HashMap<>(); //(value, quantity) tuple
+        Map<String, Pair<BigDecimal, BigInteger>> positions = new HashMap<>(); //(basis, quantity) tuple
 
         List<Transaction> priorTrans = transactionRepository.findAllBefore(start);
         log.info(new Timestamp(System.currentTimeMillis()) + " "
@@ -41,47 +43,75 @@ public class PnLService {
                 + "\n" + priorTrans.size() + " transactions"
                 + "\n" + " from " + start + " to " + end
         );
+
+        //get the starting (basis, quantity)
+        // long = negative value, positive quant
+        // short = positive value, negative quant
         for(Transaction transaction : priorTrans) {
             String sym = transaction.getSymbol();
             if(TransactionType.CASH_TRANS.contains(transaction.getTransactionType().getDescription()))
                 sym = CASH;
 
-            Pair<BigDecimal, BigInteger> startPos = Pair.of(BigDecimal.ZERO, BigInteger.ZERO); //(value, quantity) tuple
+            BigDecimal transPrice, transVal, startPrice, startVal, endVal, cash;
+            BigInteger startQuant, transQuant, endQuant;
+
+            Pair<BigDecimal, BigInteger> startPos = Pair.of(BigDecimal.ZERO, BigInteger.ZERO); //(basis, quantity) tuple
             if(positions.containsKey(sym))
                 startPos = positions.get(sym);
+            startVal = startPos.getLeft();
+            startQuant = startPos.getRight();
+            startPrice = startPos.getRight().equals(BigInteger.ZERO) ? BigDecimal.ZERO
+                    : startVal.divide(new BigDecimal(startQuant), ROUNDING_SCALE, RoundingMode.HALF_UP).abs();
+            cash = transaction.getValue();
 
             switch(transaction.getTransactionType().getDescription()) {
                 case TransactionType.DEPOSIT:
-                    positions.put(sym, Pair.of(startPos.getLeft().add(transaction.getValue()), BigInteger.ZERO));
+                    positions.put(sym, Pair.of(startPos.getLeft().add(cash), BigInteger.ZERO));
                     break;
                 case TransactionType.WITHDRAWAL:
-                    positions.put(sym, Pair.of(startPos.getLeft().subtract(transaction.getValue()), BigInteger.ZERO));
+                    positions.put(sym, Pair.of(startPos.getLeft().subtract(cash), BigInteger.ZERO));
                     break;
                 case TransactionType.BUY:
+                    //trans inputs always >= 0
+                    transVal = transaction.getValue();
+                    transQuant = transaction.getQuantity();
+                    transPrice = transQuant.equals(BigInteger.ZERO) ? BigDecimal.ZERO
+                            : transVal.divide(new BigDecimal(transQuant), ROUNDING_SCALE, RoundingMode.HALF_UP);
 
-                    positions.put(sym, Pair.of(startPos.getLeft().subtract(transaction.getValue()), startPos.getRight().add(transaction.getQuantity())));
-                    positions.put(CASH, Pair.of(positions.get(CASH).getLeft().subtract(transaction.getValue()), BigInteger.ZERO));
+                    endQuant = startQuant.add(transQuant);
+
+                    //long -> long
+                    if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0))
+                        endVal = startVal.subtract(transVal);
+                    // short -> short
+                    else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0))
+                        endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
+                    //long -> short | short -> long
+                    else
+                        endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
+                    positions.put(sym, Pair.of(endVal, endQuant));
+                    positions.put(CASH, Pair.of(positions.get(CASH).getLeft().subtract(cash), BigInteger.ZERO));
                     break;
                 case TransactionType.SALE:
-                    //calc new position
-                    BigDecimal transPrice = transaction.getValue().abs().divide(new BigDecimal(transaction.getQuantity()));
-                    BigInteger newQuant = startPos.getRight().subtract(transaction.getQuantity());
-                    BigDecimal newVal = transPrice.multiply(new BigDecimal(newQuant));
-                    positions.put(sym, Pair.of(newVal, newQuant));
+                    //trans inputs always >= 0
+                    transVal = transaction.getValue();
+                    transQuant = transaction.getQuantity();
+                    transPrice = transQuant.equals(BigInteger.ZERO) ? BigDecimal.ZERO
+                            : transVal.divide(new BigDecimal(transQuant), ROUNDING_SCALE, RoundingMode.HALF_UP);
 
-                    //calc realized
-                    BigDecimal startPrice = startPos.getLeft().abs().divide(new BigDecimal(startPos.getRight()));
-                    BigDecimal realized = (transPrice.subtract(startPrice)).multiply(new BigDecimal(transaction.getQuantity()));
-                    positions.put(CASH, Pair.of(positions.get(CASH).getLeft().add(realized), BigInteger.ZERO));
-                    log.info(new Timestamp(System.currentTimeMillis()) + " "
-                            + this.getClass() + ":"
-                            + new Throwable().getStackTrace()[0].getMethodName()
-                            + "\nstartPrice: " + startPrice
-                            + "\ntransPrice: " + transPrice
-                            + "\nrealized: " + realized
-                            + "\nnewQuant: " + newQuant
-                            + "\nnewVal: " + newVal
-                    );
+                    endQuant = startQuant.subtract(transaction.getQuantity());
+
+                    //long -> long
+                    if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0))
+                        endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
+                    //short -> short
+                    else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0))
+                        endVal = startVal.add(transVal);
+                    //long -> short | short -> long
+                    else
+                        endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
+                    positions.put(sym, Pair.of(endVal, endQuant));
+                    positions.put(CASH, Pair.of(positions.get(CASH).getLeft().add(cash), BigInteger.ZERO));
                     break;
                 default:
                     throw new UnsupportedOperationException("Unknown transaction type " + transaction.getTransactionType().getDescription());
@@ -89,8 +119,8 @@ public class PnLService {
             log.info(new Timestamp(System.currentTimeMillis()) + " "
                     + this.getClass() + ":"
                     + new Throwable().getStackTrace()[0].getMethodName()
-                    + "\ntransaction: " + transaction.toString()
-                    + "\npositions: " + positions
+                    + "\n### End transaction: " + transaction.toString()
+                    + "\n### End positions: " + positions
             );
         }
         log.info(new Timestamp(System.currentTimeMillis()) + " "
