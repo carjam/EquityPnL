@@ -1,9 +1,11 @@
 package com.companyx.equity.service;
 
+import com.companyx.equity.error.UnexpectedPriceCountException;
 import com.companyx.equity.model.Transaction;
 import com.companyx.equity.model.TransactionType;
 import com.companyx.equity.repository.FinhubRepository;
 import com.companyx.equity.repository.TransactionRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +39,7 @@ public class PnLService {
      *  long = negative value, positive quantity
      *  short = positive value, negative quantity
      */
-    public Map<String, Pair<BigDecimal, BigInteger>> getPosition(Date start, Date end) {
+    public Map<String, Pair<BigDecimal, BigInteger>> getPosition(Date start, Date end) throws JsonProcessingException {
         Map<String, Pair<BigDecimal, BigInteger>> positions = new HashMap<>(); //(basis, quantity) tuple
         Map<String, Pair<BigDecimal, BigDecimal>> pnl = new HashMap<>(); //(realized, unrealized) tuple
 
@@ -52,10 +54,10 @@ public class PnLService {
         //get the starting (basis, quantity)
         for(Transaction transaction : priorTrans) {
             String sym = transaction.getSymbol();
-            if(!pnl.containsKey(sym))
-                pnl.put(sym, Pair.of(BigDecimal.ZERO, BigDecimal.ZERO));
             if(TransactionType.CASH_TRANS.contains(transaction.getTransactionType().getDescription()))
                 sym = CASH;
+            if(!pnl.containsKey(sym))
+                pnl.put(sym, Pair.of(BigDecimal.ZERO, BigDecimal.ZERO));
 
             BigDecimal transPrice, transVal, startPrice, startVal, endVal, cash;
             BigInteger startQuant, transQuant, endQuant;
@@ -143,12 +145,13 @@ public class PnLService {
                 + "\n" + " from " + start + " to " + end
         );
 
-        //TODO: unrealized is only at the final date on all positions regardless of transaction
         //calculate PnL
         for(Transaction transaction : transactions) {
             String sym = transaction.getSymbol();
             if(TransactionType.CASH_TRANS.contains(transaction.getTransactionType().getDescription()))
                 sym = CASH;
+            if(!pnl.containsKey(sym))
+                pnl.put(sym, Pair.of(BigDecimal.ZERO, BigDecimal.ZERO));
 
             BigDecimal transPrice, transVal, startPrice, startVal, endVal, cash, realized, unrealized;
             BigInteger startQuant, transQuant, endQuant;
@@ -183,12 +186,12 @@ public class PnLService {
                         endVal = startVal.subtract(transVal);
                         realized = BigDecimal.ZERO;
                         unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
-                        // short -> short
+                    // short -> short
                     } else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0)) {
                         endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                         realized = new BigDecimal(transQuant).multiply(transPrice.subtract(startPrice));
                         unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
-                        //short -> long
+                    //short -> long
                     } else {
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                         realized = startVal.subtract(new BigDecimal(startQuant).multiply(transPrice)); // basis - (startQ * transP)
@@ -212,12 +215,12 @@ public class PnLService {
                         endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                         realized = new BigDecimal(transQuant).multiply(transPrice.subtract(startPrice));
                         unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
-                        //short -> short
+                    //short -> short
                     } else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0)) {
                         endVal = startVal.add(transVal);
                         realized = BigDecimal.ZERO;
                         unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
-                        //long -> short
+                    //long -> short
                     } else {
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                         realized = new BigDecimal(startQuant).multiply(transPrice).add(startVal); // (startQ * transP) - basis
@@ -238,12 +241,40 @@ public class PnLService {
                     + "\n### End pnl: " + pnl
             );
         }
+
+        // calculate unrealized using price data
+        for(String sym : pnl.keySet()) {
+            if(sym.equals(CASH))
+                continue;
+            log.info(new Timestamp(System.currentTimeMillis()) + " "
+                    + this.getClass() + ":"
+                    + new Throwable().getStackTrace()[0].getMethodName()
+                    + "\nCalculating unrealized for " +  sym
+            );
+            Date today = new Date();
+            BigDecimal price;
+            //TODO: add biz day logic for holidays and weekends
+            if(end.compareTo(today) >= 0) {
+                price = finhubRepository.getMark(sym).getCurrentPrice();
+            } else {
+                List<BigDecimal> prices = finhubRepository.getCandle(sym, end, end).getClose();
+                if(prices.size() != 1)
+                    throw new UnexpectedPriceCountException(sym + " had " + prices.size() + " prices for " + end);
+                price = prices.get(0);
+            }
+            BigDecimal basis = positions.get(sym).getLeft();
+            BigInteger quantity = positions.get(sym).getRight();
+
+            BigDecimal unrealized = (price.multiply(new BigDecimal(quantity))).subtract(basis);
+            pnl.put(sym, Pair.of(pnl.get(sym).getLeft(), unrealized));
+        }
+
         log.info(new Timestamp(System.currentTimeMillis()) + " "
                 + this.getClass() + ":"
                 + new Throwable().getStackTrace()[0].getMethodName()
-                + "\nEnd Position: " + positions
+                + "\nFinal Position: " + positions
+                + "\nFinal pnl: " + pnl
         );
-
         return positions;
     }
 
