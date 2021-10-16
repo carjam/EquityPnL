@@ -4,7 +4,7 @@ A prototype PnL snapshot calculation engine for Equity positions based on free-t
 - https://finnhub.io/docs/api/quote
 - https://finnhub.io/docs/api/stock-candles
 
-<h5>Desirable Future Enhancements:</h5>
+Desirable Future Enhancements:
   - Tech
     - expose webhook for near realtime ingestion of Transactions
         - calculate and store PnL at ingestion time (rather than on demand)
@@ -28,8 +28,9 @@ A prototype PnL snapshot calculation engine for Equity positions based on free-t
   	- more events: dividends, split, reverse split, delisting, etc
 
 
+
 <h4>Setup Steps:</h4>
-<h5>Create .env and add your environment values like:</h5>
+Create .env and add your environment values like:
 ```
 MYSQL_ROOT_PASSWORD=root1234
 MYSQL_USER=carjam
@@ -50,7 +51,7 @@ FINHUB_KEY=[your Finhub key value here]
 ```
 
 
-<h5>Create mysql DB & user:</h5>
+Create mysql DB & user:
 ```
 mysql -u root
  > CREATE USER 'carjam'@'localhost' IDENTIFIED BY 'password'
@@ -63,7 +64,7 @@ mysql -u root
  > ALTER USER 'carjam'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';
 ```
 
-<h5>Build</h5>
+Build
 ```
 From equity directory:
 > . build.sh
@@ -76,7 +77,7 @@ OR
 ```
 
 
-<h5>To run with docker-compose:</h5>
+To run with docker-compose:
 ```
 > docker-compose build
 > docker-compose up
@@ -85,7 +86,7 @@ To setup docker, first follow instructions here:
   https://spring.io/guides/gs/spring-boot-docker/
 
 
-<h5>Or...manually run maven migrations:</h5>
+Or...manually run maven migrations:
 Install Maven: https://maven.apache.org/install.html
 Follow directions to assure JAVA_HOME and the maven bin directory are in your path.
 Build: 
@@ -102,6 +103,6 @@ Build:
  to manually run flyway:
    from /equity directory > mvn compile flyway:migrate
 
-<h5>Verify running using
+Verify running using
 - ./postman/*.json endopint access specifications</h5>
 - http://localhost:8080/actuator/health
