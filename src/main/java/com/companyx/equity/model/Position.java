@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Timestamp;
@@ -16,7 +17,8 @@ import java.sql.Timestamp;
 @Setter
 @Entity
 public class Position {
-    public Position(Timestamp timestamp, String symbol) {
+    public Position(User user, Timestamp timestamp, String symbol) {
+        this.user = user;
         this.timestamp = timestamp;
         this.symbol = symbol;
         this.quantity = BigInteger.ZERO;
@@ -46,6 +48,8 @@ public class Position {
             "\"symbol\":" + symbol +
             "\"quantity\":" + quantity +
             "\"value\":" + value +
+            "\"realized\":" + realized +
+            "\"unrealized\":" + unrealized +
         "}";
     }
 }

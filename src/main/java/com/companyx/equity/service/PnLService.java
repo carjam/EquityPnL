@@ -9,12 +9,15 @@ import com.companyx.equity.repository.FinhubRepository;
 import com.companyx.equity.repository.TransactionRepository;
 import com.companyx.equity.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.security.auth.login.LoginException;
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -40,6 +43,14 @@ public class PnLService {
     FinhubRepository finhubRepository;
 
     /**
+     * Retrieves the realized, unrealized PnL, quantity, and basis for a date range
+     *
+     * A superior implementation would expose a webhook endpoint to accept Transactions as they settle near-realtime
+     * The endpoint would process each Transaction and persist a Position.  realized PnL as Instantiation to Date.
+     * With that in place, querying for PnL at a given date range would simply involve looking up the start Position and end Position
+     *    realized = End realized ITD - Start realized ITD
+     *    unrealized = (End Position Quantity * Price @ Date) - End Position basis
+     *
      * Position endPos = start positions + buys - sales;
      *  long = negative value, positive quantity
      *  short = positive value, negative quantity
@@ -50,6 +61,11 @@ public class PnLService {
             throw new LoginException();
 
         Map<String, Position> positions = getStartPositions(user.get(), start);
+        //clone positions to calculate realized later
+        Gson gson = new Gson();
+        String jsonString = gson.toJson(positions);
+        Type type = new TypeToken<HashMap<String, Position>>(){}.getType();
+        HashMap<String, Position> startPositions = gson.fromJson(jsonString, type);
 
         //get transactions in scope & calculate new basis, quantity, and cumulative realized
         List<Transaction> transactions = transactionRepository.findAllBetween(user.get().getId(), start, end);
@@ -59,9 +75,8 @@ public class PnLService {
                 + "\n" + transactions.size() + " transactions"
                 + "\n" + " from " + start + " to " + end
         );
-        positions = applyTransactions(positions, transactions);
-
-        // calculate unrealized using price data @ end
+        positions = applyTransactions(user.get(), positions, transactions);
+        positions = calculateRealized(startPositions, positions);
         positions = calculateUnrealized(positions, end);
         log.info(new Timestamp(System.currentTimeMillis()) + " "
                 + this.getClass() + ":"
@@ -71,6 +86,16 @@ public class PnLService {
         return positions;
     }
 
+    /**
+     * Primes the starting positions from inception to provided start date
+     *  realized = ITD
+     *  unrealized = 0
+     *
+     * @param user
+     * @param start
+     * @return Map of symbol -> Positions
+     * @throws JsonProcessingException
+     */
     private Map<String, Position> getStartPositions(User user, Date start) throws JsonProcessingException {
         List<Transaction> priorTrans = transactionRepository.findAllBefore(user.getId(), start);
         log.info(new Timestamp(System.currentTimeMillis()) + " "
@@ -81,7 +106,7 @@ public class PnLService {
         );
 
         Map<String, Position> positions = new HashMap<>(); //(basis, quantity) tuple
-        applyTransactions(positions, priorTrans);
+        applyTransactions(user, positions, priorTrans);
         log.info(new Timestamp(System.currentTimeMillis()) + " "
                 + this.getClass() + ":"
                 + new Throwable().getStackTrace()[0].getMethodName()
@@ -90,19 +115,18 @@ public class PnLService {
         return positions;
     }
 
-    private Map<String, Position> applyTransactions(Map<String, Position> positions, List<Transaction> transactions)
+    private Map<String, Position> applyTransactions(User user, Map<String, Position> positions, List<Transaction> transactions)
             throws JsonProcessingException {
         for(Transaction transaction : transactions) {
             String sym = transaction.getSymbol();
             if(TransactionType.CASH_TRANS.contains(transaction.getTransactionType().getDescription()))
                 sym = CASH;
 
-            BigDecimal transPrice, transVal, startPrice, startVal, endVal, cash, realized, unrealized;
+            BigDecimal transPrice, transVal, startPrice, startVal, endVal, cash, realized;//, unrealized;
             BigInteger startQuant, transQuant, endQuant;
 
-            Position cashPos = positions.containsKey(CASH) ? positions.get(sym) : new Position(transaction.getTimestamp(), sym);
-            Position startPos = positions.containsKey(sym) ? positions.get(sym) : new Position(transaction.getTimestamp(), sym);
-            //TODO: set cashPos, startPos user
+            Position cashPos = positions.containsKey(CASH) ? positions.get(sym) : new Position(user, transaction.getTimestamp(), sym);
+            Position startPos = positions.containsKey(sym) ? positions.get(sym) : new Position(user, transaction.getTimestamp(), sym);
 
             startVal = startPos.getValue();
             startQuant = startPos.getQuantity();
@@ -136,22 +160,22 @@ public class PnLService {
                     if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0)) {
                         endVal = startVal.subtract(transVal);
                         realized = BigDecimal.ZERO;
-                        unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
+                        // unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
                         // short -> short
                     } else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0)) {
                         endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                         realized = new BigDecimal(transQuant).multiply(transPrice.subtract(startPrice));
-                        unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
+                        // unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
                         //short -> long
                     } else {
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                         realized = startVal.subtract(new BigDecimal(startQuant).multiply(transPrice)); // basis - (startQ * transP)
-                        unrealized = BigDecimal.ZERO;
+                        // unrealized = BigDecimal.ZERO;
                     }
 
                     startPos.setValue(endVal);
                     startPos.setQuantity(endQuant);
-                    startPos.setRealized(realized);
+                    startPos.setRealized(startPos.getRealized().add(realized)); //ITD cumulative
                     positions.put(sym, startPos);
 
                     cashPos = positions.get(CASH);
@@ -171,22 +195,22 @@ public class PnLService {
                     if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0)) {
                         endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                         realized = new BigDecimal(transQuant).multiply(transPrice.subtract(startPrice));
-                        unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
+                        // unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
                         //short -> short
                     } else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0)) {
                         endVal = startVal.add(transVal);
                         realized = BigDecimal.ZERO;
-                        unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
+                        // unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
                         //long -> short
                     } else {
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                         realized = new BigDecimal(startQuant).multiply(transPrice).add(startVal); // (startQ * transP) - basis
-                        unrealized = BigDecimal.ZERO;
+                        // unrealized = BigDecimal.ZERO;
                     }
 
                     startPos.setValue(endVal);
                     startPos.setQuantity(endQuant);
-                    startPos.setRealized(realized);
+                    startPos.setRealized(startPos.getRealized().add(realized)); //ITD cumulative
                     positions.put(sym, startPos);
 
                     cashPos = positions.get(CASH);
@@ -206,6 +230,35 @@ public class PnLService {
         return positions;
     }
 
+    /**
+     * Replaces the ITD realized PnL with the date range value
+     *  realized = end ITD - start ITD = cumulative realized over period start to end
+     *
+     * @param start
+     * @param end
+     * @return sym -> Position
+     */
+    private Map<String, Position> calculateRealized(Map<String, Position> start, Map<String, Position> end) {
+        for(String sym : end.keySet()) {
+            if(!start.containsKey(sym) || sym.equals(CASH))
+                continue; // all transactions for this security were within period
+            Position position = end.get(sym);
+            BigDecimal realized = position.getRealized().subtract(start.get(sym).getRealized());
+            position.setRealized(realized);
+            end.put(sym, position);
+        }
+        return end;
+    }
+
+    /**
+     * Calculates unrealized
+     *  unrealized = (end Price * quantity) - basis
+     *
+     * @param positions
+     * @param end
+     * @return sym -> Position
+     * @throws JsonProcessingException
+     */
     private Map<String, Position> calculateUnrealized(Map<String, Position> positions, Date end) throws JsonProcessingException {
         for(String sym : positions.keySet()) {
             if(sym.equals(CASH))
