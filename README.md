@@ -31,6 +31,7 @@ Desirable Future Enhancements:
 
 <h4>Setup Steps:</h4>
 Create .env and add your environment values like:
+
 ```
 MYSQL_ROOT_PASSWORD=root1234
 MYSQL_USER=carjam
@@ -49,6 +50,7 @@ LOG_LEVEL=INFO
 
 FINHUB_KEY=[your Finhub key value here]
 ```
+
 
 
 Create mysql DB & user:
