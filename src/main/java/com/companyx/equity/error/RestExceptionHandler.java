@@ -43,8 +43,8 @@ public class RestExceptionHandler {
         return new ResponseEntity<>(msg, HttpStatus.EXPECTATION_FAILED);
     }
 
-    @ExceptionHandler(value = UnexpectedPriceCountException.class)
-    protected ResponseEntity<Object> exception(UnexpectedPriceCountException e) {
+    @ExceptionHandler(value = UnexpectedValueException.class)
+    protected ResponseEntity<Object> exception(UnexpectedValueException e) {
         String msg = e.getMessage();
         log.error(msg);
         return new ResponseEntity<>(msg, HttpStatus.EXPECTATION_FAILED);
