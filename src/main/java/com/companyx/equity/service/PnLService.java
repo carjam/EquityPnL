@@ -39,6 +39,7 @@ public class PnLService {
      */
     public Map<String, Pair<BigDecimal, BigInteger>> getPosition(Date start, Date end) {
         Map<String, Pair<BigDecimal, BigInteger>> positions = new HashMap<>(); //(basis, quantity) tuple
+        Map<String, Pair<BigDecimal, BigDecimal>> pnl = new HashMap<>(); //(realized, unrealized) tuple
 
         List<Transaction> priorTrans = transactionRepository.findAllBefore(start);
         log.info(new Timestamp(System.currentTimeMillis()) + " "
@@ -51,6 +52,8 @@ public class PnLService {
         //get the starting (basis, quantity)
         for(Transaction transaction : priorTrans) {
             String sym = transaction.getSymbol();
+            if(!pnl.containsKey(sym))
+                pnl.put(sym, Pair.of(BigDecimal.ZERO, BigDecimal.ZERO));
             if(TransactionType.CASH_TRANS.contains(transaction.getTransactionType().getDescription()))
                 sym = CASH;
 
@@ -88,7 +91,7 @@ public class PnLService {
                     // short -> short
                     else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0))
                         endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
-                    //long -> short | short -> long
+                    //short -> long
                     else
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                     positions.put(sym, Pair.of(endVal, endQuant));
@@ -109,7 +112,7 @@ public class PnLService {
                     //short -> short
                     else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0))
                         endVal = startVal.add(transVal);
-                    //long -> short | short -> long
+                    //long -> short
                     else
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
                     positions.put(sym, Pair.of(endVal, endQuant));
@@ -140,13 +143,14 @@ public class PnLService {
                 + "\n" + " from " + start + " to " + end
         );
 
+        //TODO: unrealized is only at the final date on all positions regardless of transaction
         //calculate PnL
         for(Transaction transaction : transactions) {
             String sym = transaction.getSymbol();
             if(TransactionType.CASH_TRANS.contains(transaction.getTransactionType().getDescription()))
                 sym = CASH;
 
-            BigDecimal transPrice, transVal, startPrice, startVal, endVal, cash;
+            BigDecimal transPrice, transVal, startPrice, startVal, endVal, cash, realized, unrealized;
             BigInteger startQuant, transQuant, endQuant;
 
             Pair<BigDecimal, BigInteger> startPos = Pair.of(BigDecimal.ZERO, BigInteger.ZERO); //(basis, quantity) tuple
@@ -175,16 +179,24 @@ public class PnLService {
                     endQuant = startQuant.add(transQuant);
 
                     //long -> long
-                    if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0))
+                    if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0)) {
                         endVal = startVal.subtract(transVal);
+                        realized = BigDecimal.ZERO;
+                        unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
                         // short -> short
-                    else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0))
+                    } else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0)) {
                         endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
-                        //long -> short | short -> long
-                    else
+                        realized = new BigDecimal(transQuant).multiply(transPrice.subtract(startPrice));
+                        unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
+                        //short -> long
+                    } else {
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
+                        realized = startVal.subtract(new BigDecimal(startQuant).multiply(transPrice)); // basis - (startQ * transP)
+                        unrealized = BigDecimal.ZERO;
+                    }
                     positions.put(sym, Pair.of(endVal, endQuant));
-                    positions.put(CASH, Pair.of(positions.get(CASH).getLeft().subtract(cash), BigInteger.ZERO));
+                    positions.put(CASH, Pair.of(positions.get(CASH).getLeft().add(cash), BigInteger.ZERO));
+                    pnl.put(sym, Pair.of(realized.add(pnl.get(sym).getLeft()), unrealized));
                     break;
                 case TransactionType.SALE:
                     //trans inputs always >= 0
@@ -196,16 +208,24 @@ public class PnLService {
                     endQuant = startQuant.subtract(transaction.getQuantity());
 
                     //long -> long
-                    if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0))
+                    if((endQuant.compareTo(BigInteger.ZERO) > 0) && (startQuant.compareTo(BigInteger.ZERO) > 0)) {
                         endVal = startPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
+                        realized = new BigDecimal(transQuant).multiply(transPrice.subtract(startPrice));
+                        unrealized = new BigDecimal(endQuant).multiply(transPrice.subtract(startPrice));
                         //short -> short
-                    else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0))
+                    } else if((endQuant.compareTo(BigInteger.ZERO) < 0) && (startQuant.compareTo(BigInteger.ZERO) < 0)) {
                         endVal = startVal.add(transVal);
-                        //long -> short | short -> long
-                    else
+                        realized = BigDecimal.ZERO;
+                        unrealized = (transPrice.subtract(startPrice).multiply(new BigDecimal(startQuant)));
+                        //long -> short
+                    } else {
                         endVal = transPrice.multiply(new BigDecimal(endQuant)).multiply(new BigDecimal(-1));
+                        realized = new BigDecimal(startQuant).multiply(transPrice).add(startVal); // (startQ * transP) - basis
+                        unrealized = BigDecimal.ZERO;
+                    }
                     positions.put(sym, Pair.of(endVal, endQuant));
                     positions.put(CASH, Pair.of(positions.get(CASH).getLeft().add(cash), BigInteger.ZERO));
+                    pnl.put(sym, Pair.of(realized.add(pnl.get(sym).getLeft()), unrealized));
                     break;
                 default:
                     throw new UnsupportedOperationException("Unknown transaction type " + transaction.getTransactionType().getDescription());
@@ -215,6 +235,7 @@ public class PnLService {
                     + new Throwable().getStackTrace()[0].getMethodName()
                     + "\n### End transaction: " + transaction.toString()
                     + "\n### End positions: " + positions
+                    + "\n### End pnl: " + pnl
             );
         }
         log.info(new Timestamp(System.currentTimeMillis()) + " "
