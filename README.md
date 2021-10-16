@@ -5,6 +5,29 @@ Snapshot PnL calculation for Equity positions based on free-tier Finhub integrat
 - https://finnhub.io/docs/api/quote
 - https://finnhub.io/docs/api/stock-candles
 
+Desirable Enhancements:
+  - Tech
+    - expose webhook for near realtime ingestion of Transactions
+        - calculate and store PnL at ingestion time (rather than query)
+  	- persist finhub historical marks asynchronously and cache query first - add 2nd lvl cache LRU for latest dates
+    - add business day logic for price inquiries - lookup last biz day on mkt close day
+  	- add unit tests
+  	- validate input on receipt in controllers
+  	- authentication/security
+  	- general clean up/refactor
+  - Features
+  	- transaction costs, tax impliciation (short term/long term)
+    - margin
+    - store ITD, YTD, MTD, daily (nightly persist)
+  		- base queries off this for faster lookup and less reliance on Finhub
+  	- triple ledger for accounting
+  	- attribution to greeks - beta & alpha
+ - Upstream
+    - account for settled, pending, fails, etc
+  	- fractional shares in Transactions
+  	- Transactions specifying positions by lot for loss harvesting (fifo/lifo)
+  	- more events: dividends, split, reverse split, delisting, etc
+
 
 Setup Steps:
 ```
@@ -52,6 +75,8 @@ DATABASE_NAME=equity
 DATABASE_PORT=3306
 SPRING_PROFILES_ACTIVE=dev
 LOG_LEVEL=INFO
+
+FINHUB_KEY=[your Finhub key value here]
 ```
 
 

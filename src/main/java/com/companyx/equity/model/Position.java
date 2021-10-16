@@ -37,6 +37,7 @@ public class Position {
     private BigDecimal value;
     private BigDecimal realized;
     private BigDecimal unrealized;
+    private BigDecimal price;
 
     @ManyToOne(fetch = FetchType.EAGER)
     private User user;

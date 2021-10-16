@@ -269,7 +269,7 @@ public class PnLService {
             );
             Date today = new Date();
             BigDecimal price;
-            //TODO: add biz day logic for holidays and weekends
+            //TODO: add biz day logic for holidays and weekends - SwapMon
             if(end.compareTo(today) >= 0) {
                 price = finhubRepository.getMark(sym).getCurrentPrice();
             } else {
@@ -280,9 +280,11 @@ public class PnLService {
             }
             BigDecimal basis = positions.get(sym).getValue();
             BigInteger quantity = positions.get(sym).getQuantity();
-            BigDecimal unrealized = (price.multiply(new BigDecimal(quantity))).subtract(basis);
+            //(end price * quantity) - basis
+            BigDecimal unrealized = (price.multiply(new BigDecimal(quantity))).add(basis);
             Position position = positions.get(sym);
             position.setUnrealized(unrealized);
+            position.setPrice(price);
             positions.put(sym, position);
         }
         return positions;
