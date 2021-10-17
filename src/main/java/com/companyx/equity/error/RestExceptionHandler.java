@@ -37,13 +37,6 @@ public class RestExceptionHandler {
         return new ResponseEntity<>(msg, HttpStatus.EXPECTATION_FAILED);
     }
 
-    @ExceptionHandler(value = UnsupportedOperationException.class)
-    protected ResponseEntity<Object> exception(UnsupportedOperationException e) {
-        String msg = e.getMessage();
-        log.error(msg);
-        return new ResponseEntity<>(msg, HttpStatus.EXPECTATION_FAILED);
-    }
-
     @ExceptionHandler(value = UnexpectedValueException.class)
     protected ResponseEntity<Object> exception(UnexpectedValueException e) {
         String msg = e.getMessage();

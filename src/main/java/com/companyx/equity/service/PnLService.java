@@ -46,10 +46,10 @@ public class PnLService {
      * Retrieves the realized, unrealized PnL, quantity, and basis for a date range
      *
      * A superior implementation would expose a webhook endpoint to accept Transactions as they settle near-realtime
-     * The endpoint would process each Transaction and persist a Position.  realized PnL as Instantiation to Date.
-     * With that in place, querying for PnL at a given date range would simply involve looking up the start Position and end Position
+     * The endpoint would process each Transaction and persist a Position.
+     * With that in place, getStartPositions() & getEndPositions() could be replaced by DB record lookup
      *    realized = End realized ITD - Start realized ITD
-     *    unrealized = (End Position Quantity * Price @ Date) - End Position basis
+     *    unrealized = (Position Quantity * Price @ Date) -  Position basis
      *
      * Position endPos = start positions + buys - sales;
      *  long = negative value, positive quantity
@@ -66,16 +66,8 @@ public class PnLService {
         String jsonString = gson.toJson(positions);
         Type type = new TypeToken<HashMap<String, Position>>(){}.getType();
         HashMap<String, Position> startPositions = gson.fromJson(jsonString, type);
+        positions = getEndPositions(user.get(), start, end, positions);
 
-        //get transactions in scope & calculate new basis, quantity, and cumulative realized
-        List<Transaction> transactions = transactionRepository.findAllBetween(user.get().getId(), start, end);
-        log.info(new Timestamp(System.currentTimeMillis()) + " "
-                + this.getClass() + ":"
-                + new Throwable().getStackTrace()[0].getMethodName()
-                + "\n" + transactions.size() + " transactions"
-                + "\n" + " from " + start + " to " + end
-        );
-        positions = applyTransactions(user.get(), positions, transactions);
         positions = calculateRealized(startPositions, positions);
         positions = calculateUnrealized(positions, end);
         log.info(new Timestamp(System.currentTimeMillis()) + " "
@@ -115,6 +107,31 @@ public class PnLService {
         return positions;
     }
 
+    /**
+     * Applies transactions within a date range to the starting positions
+     *
+     * @param user
+     * @param start
+     * @param end
+     * @param startPositions
+     * @return Map of symbol -> Positions
+     * @throws JsonProcessingException
+     */
+    private Map<String, Position> getEndPositions(User user, Date start, Date end, Map<String, Position> startPositions)
+            throws JsonProcessingException {
+        //get transactions in scope & calculate new basis, quantity, and cumulative realized
+        List<Transaction> transactions = transactionRepository.findAllBetween(user.getId(), start, end);
+        log.info(new Timestamp(System.currentTimeMillis()) + " "
+                + this.getClass() + ":"
+                + new Throwable().getStackTrace()[0].getMethodName()
+                + "\n" + transactions.size() + " transactions"
+                + "\n" + " from " + start + " to " + end
+        );
+        startPositions = applyTransactions(user, startPositions, transactions);
+        return startPositions;
+    }
+
+    //TODO: refactor to simplify by virtue of symmetry
     private Map<String, Position> applyTransactions(User user, Map<String, Position> positions, List<Transaction> transactions)
             throws JsonProcessingException {
         for(Transaction transaction : transactions) {
@@ -160,7 +177,6 @@ public class PnLService {
                     transQuant = transaction.getQuantity();
                     transPrice = transQuant.equals(BigInteger.ZERO) ? BigDecimal.ZERO
                             : transVal.divide(new BigDecimal(transQuant), ROUNDING_SCALE, RoundingMode.HALF_UP);
-
                     endQuant = startQuant.add(transQuant);
 
                     //long -> long
@@ -191,7 +207,6 @@ public class PnLService {
                     transQuant = transaction.getQuantity();
                     transPrice = transQuant.equals(BigInteger.ZERO) ? BigDecimal.ZERO
                             : transVal.divide(new BigDecimal(transQuant), ROUNDING_SCALE, RoundingMode.HALF_UP);
-
                     endQuant = startQuant.subtract(transaction.getQuantity());
 
                     //long -> long
@@ -217,7 +232,7 @@ public class PnLService {
                     positions.put(CASH, cashPos);
                     break;
                 default:
-                    throw new UnsupportedOperationException("Unknown transaction type " + transaction.getTransactionType().getDescription());
+                    throw new UnexpectedValueException("Unknown transaction type " + transaction.getTransactionType().getDescription());
             }
             log.info(new Timestamp(System.currentTimeMillis()) + " "
                     + this.getClass() + ":"
