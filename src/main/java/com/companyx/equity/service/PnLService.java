@@ -45,7 +45,7 @@ public class PnLService {
     /**
      * Retrieves the realized, unrealized PnL, quantity, and basis for a date range
      *
-     * A superior implementation would expose a webhook endpoint to accept Transactions as they settle near-realtime
+     * A superior implementation would integrate w/ a messaging queue to ingest Transactions as they settle near-realtime
      * The endpoint would process each Transaction and persist a Position.
      * With that in place, getStartPositions() & getEndPositions() could be replaced by DB record lookup
      *    realized = End realized ITD - Start realized ITD

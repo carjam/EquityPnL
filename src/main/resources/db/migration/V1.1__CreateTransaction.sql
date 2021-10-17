@@ -45,7 +45,7 @@ WHERE description = 'sell';
 
 
 CREATE TABLE transaction (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY -- if we guarantee ordering via MQ, ordering of id and timestamp will agree
     , user_id BIGINT UNSIGNED NOT NULL
     , transaction_type_id BIGINT UNSIGNED NOT NULL
     , symbol CHAR(12) NULL

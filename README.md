@@ -6,7 +6,7 @@ A prototype PnL snapshot calculation engine for Equity positions based on free-t
 
 Desirable Future Enhancements:
   - Tech
-    - expose webhook for near realtime ingestion of Transactions
+    - integrate w/ messaging queue for near realtime ingestion of chronologically ordered Transactions
         - calculate and store PnL at ingestion time (rather than on demand)
   	- persist finhub historical marks asynchronously and cache query first - add 2nd lvl cache LRU for latest dates
     - add business day logic for price inquiries - lookup last biz day on mkt close day
