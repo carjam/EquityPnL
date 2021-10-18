@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.EnableRetry;
+import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -28,6 +30,7 @@ import java.util.Date;
 
 @Slf4j
 @Configuration
+@EnableRetry
 public class FinhubRepository {
     private final int BACKOFF_DELAY = 30;
     private final String FINHUB_TOKEN_KEY = "X-Finnhub-Token";
@@ -83,6 +86,16 @@ public class FinhubRepository {
         return new ObjectMapper().readValue(sResponse, MarkDto.class);
     }
 
+    @Recover
+    public CandleDto getMark(RuntimeException e, String symbol) {
+        log.error(new Timestamp(System.currentTimeMillis()) + " "
+                + this.getClass() + ":"
+                + new Throwable().getStackTrace()[0].getMethodName()
+                + "\nCould not reach Finhub " + e.getMessage()
+        );
+        throw e;
+    }
+
     @Retryable(maxAttempts = 3, backoff = @Backoff(delay = BACKOFF_DELAY))
     public CandleDto getCandle(String symbol, Date from, Date to) throws JsonProcessingException {
         final String CANDLE = "/stock/candle";
@@ -111,6 +124,16 @@ public class FinhubRepository {
         JsonNode response = verifyResponse(result.block());
         String sResponse = new ObjectMapper().writeValueAsString(response);
         return new ObjectMapper().readValue(sResponse, CandleDto.class);
+    }
+
+    @Recover
+    public CandleDto getCandle(RuntimeException e, String symbol, Date from, Date to) {
+        log.error(new Timestamp(System.currentTimeMillis()) + " "
+                + this.getClass() + ":"
+                + new Throwable().getStackTrace()[0].getMethodName()
+                + "\nCould not reach Finhub " + e.getMessage()
+        );
+        throw e;
     }
 
     ///
