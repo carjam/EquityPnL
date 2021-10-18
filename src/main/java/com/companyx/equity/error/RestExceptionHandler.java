@@ -44,6 +44,13 @@ public class RestExceptionHandler {
         return new ResponseEntity<>(msg, HttpStatus.EXPECTATION_FAILED);
     }
 
+    @ExceptionHandler(value = VendorConnectivityException.class)
+    protected ResponseEntity<Object> exception(VendorConnectivityException e) {
+        String msg = e.getMessage();
+        log.error(msg);
+        return new ResponseEntity<>(msg, HttpStatus.EXPECTATION_FAILED);
+    }
+
     @ExceptionHandler(value = LoginException.class)
     protected ResponseEntity<Object> exception(LoginException e) {
         String msg = e.getMessage();

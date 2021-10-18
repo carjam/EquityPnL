@@ -3,6 +3,7 @@ package com.companyx.equity.repository;
 import com.companyx.equity.dto.CandleDto;
 import com.companyx.equity.dto.MarkDto;
 import com.companyx.equity.error.ResponseVerificationException;
+import com.companyx.equity.error.VendorConnectivityException;
 import com.companyx.equity.utility.DateUtils;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
@@ -93,7 +94,7 @@ public class FinhubRepository {
                 + new Throwable().getStackTrace()[0].getMethodName()
                 + "\nCould not reach Finhub " + e.getMessage()
         );
-        throw e;
+        throw new VendorConnectivityException(e.getMessage());
     }
 
     @Retryable(maxAttempts = 3, backoff = @Backoff(delay = BACKOFF_DELAY))
@@ -133,7 +134,7 @@ public class FinhubRepository {
                 + new Throwable().getStackTrace()[0].getMethodName()
                 + "\nCould not reach Finhub " + e.getMessage()
         );
-        throw e;
+        throw new VendorConnectivityException(e.getMessage());
     }
 
     ///
